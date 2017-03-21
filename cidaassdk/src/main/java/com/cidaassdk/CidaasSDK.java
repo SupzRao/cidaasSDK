@@ -30,7 +30,6 @@ import com.scottyab.aescrypt.AESCrypt;
 
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -551,10 +550,9 @@ public class CidaasSDK extends RelativeLayout {
         SharedPreferences.Editor editor = sp.edit();
         String salt = UUID.randomUUID().toString();
         String en = null;
-        Calendar calendar = Calendar.getInstance();
-        long timeinmillis = calendar.getTimeInMillis();
-        long time = timeinmillis * 60 + loginEntity.getExpires_in() - 10;
-
+        long timeinmillis = System.currentTimeMillis();
+        long time = timeinmillis * 60;
+        time = time + loginEntity.getExpires_in() - 10;
         try {
             en = AESCrypt.encrypt(salt, loginEntity.getAccess_token());
             editor.putString("AccessToken", en);
@@ -607,25 +605,21 @@ public class CidaasSDK extends RelativeLayout {
         String AccessToken = sp.getString("AccessToken", "");
         String RefreshToken = sp.getString("RefreshToken", "");
         String Salt = sp.getString("Salt", "");
-        Calendar calendar = Calendar.getInstance();
-        long timeinmillis = calendar.getTimeInMillis();
+        long timeinmillis = System.currentTimeMillis();
         long time = timeinmillis * 60;
         System.out.println("Current Time: " + time + "Expires in: " + ExpiresIn);
         if (UserID != "" && UserID.equals(userId)) {
             if (ExpiresIn > time) {
                 try {
                     String de = AESCrypt.decrypt(Salt, AccessToken);
-                    callback_.printMessage(de);
+                    callback_.printMessage("access token by user id shared prefs:" + de);
                 } catch (GeneralSecurityException e) {
                     e.printStackTrace();
                 }
             } else {
                 getAccessTokenByRefreshToken(RefreshToken);
-
             }
-        }
-        else
-        {
+        } else {
             //TODO
         }
     }
