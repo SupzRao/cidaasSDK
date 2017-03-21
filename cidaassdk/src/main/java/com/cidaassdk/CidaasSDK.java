@@ -2,9 +2,11 @@ package com.cidaassdk;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.http.SslError;
+import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.KeyEvent;
@@ -47,6 +49,7 @@ public class CidaasSDK extends RelativeLayout {
     private static WebView webview_ = null;
     private boolean error_ = false;
     String internetError = "";
+    private SharedPreferences sp;
 
     /*
     *
@@ -66,8 +69,8 @@ public class CidaasSDK extends RelativeLayout {
     private String userIdURL;
 
     public String getUserIdURL() {
-        if(userIdURL==null)
-            return  "";
+        if (userIdURL == null)
+            return "";
         else
             return userIdURL;
     }
@@ -79,6 +82,7 @@ public class CidaasSDK extends RelativeLayout {
     public CidaasSDK(Context context) {
         super(context);
         init(context);
+
     }
 
 
@@ -232,11 +236,10 @@ public class CidaasSDK extends RelativeLayout {
                 } else if (getGrantType().equals("")) {
                     errorMsg = "GrantType Missing ";
                     getErrorImage(layout, context, errorMsg);
-                }
-                else if (getUserIdURL().equals("")) {
+                } else if (getUserIdURL().equals("")) {
                     errorMsg = "User ID URL Missing ";
                     getErrorImage(layout, context, errorMsg);
-                }else {
+                } else {
                     String myUrl = constructURL();
                     webview_ = getInstanceOfWebview(context);
                     WebSettings settings = webview_.getSettings();
@@ -341,6 +344,8 @@ public class CidaasSDK extends RelativeLayout {
         View rootView = inflate(context, R.layout.layout_fragment, this);
         content = (RelativeLayout) rootView.findViewById(R.id.content);
         webview_ = getInstanceOfWebview(context);
+        sp = PreferenceManager.getDefaultSharedPreferences(context);
+
     }
 
     @Override
@@ -513,6 +518,11 @@ public class CidaasSDK extends RelativeLayout {
                             access_token[0] = loginEntity.getAccess_token().toString();
                             System.out.println(" access_token" + access_token[0]);
                             callback_.printMessage(access_token[0]);
+                            SharedPreferences.Editor editor = sp.edit();
+                            editor.putString("AccessToken", loginEntity.getAccess_token());
+                            editor.putString("RefreshToken", loginEntity.getRefresh_token());
+                            editor.putLong("ExpiresIn", loginEntity.getExpires_in());
+                            editor.commit();
                             getUserDetails(access_token[0]);
                         }
                     });
@@ -527,7 +537,7 @@ public class CidaasSDK extends RelativeLayout {
                 .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
                 .build();
         ICidaasAPI service = retrofit.create(ICidaasAPI.class);
-        service.getUserDetailsApi(getUserIdURL(),access_token).subscribeOn(Schedulers.newThread())
+        service.getUserDetailsApi(getUserIdURL(), access_token).subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Observer<UserProfile>() {
                     @Override
@@ -545,7 +555,10 @@ public class CidaasSDK extends RelativeLayout {
 
                     @Override
                     public void onNext(UserProfile userInfo) {
-                        System.out.println("Get user profile res User id : " + userInfo.getUserId());
+                        System.out.println("Get user profile res User id : " + userInfo.getId());
+                        SharedPreferences.Editor editor = sp.edit();
+                        editor.putString("UserID", userInfo.getId());
+                        editor.commit();
 
                     }
                 });

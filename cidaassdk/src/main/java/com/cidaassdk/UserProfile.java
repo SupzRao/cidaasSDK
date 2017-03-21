@@ -4,12 +4,7 @@ package com.cidaassdk;
  * Created by Suprada on 21-Mar-17.
  */
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
 
 
 /**
@@ -17,216 +12,62 @@ import java.util.Locale;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserProfile {
-    private String userId;
-    private Date createTime;
-    private String currentEMail;
-    private String firstname;
-    private String displayname;
-    @JsonIgnore
-    private String gender;
-    @JsonIgnore
-    private String emailStatus;
-    private String profilePhotoURL;
-    private String name;
-    private String carbookIdentifier;
-    private Date updateTime;
-    private List<String> photoGallery;
-    private List<String> iconGallery;
-    //  private Gender gender;
-    //  private AddressStatus emailStatus;
-    private String profileIconURL;
-    private List<String> emails;
-    private List<String> phoneNumbers;
-    private Locale userLocale;
-    private Date birthday;
-    private String utcOffset;
-    private AddressEntity currentAddress;
-    private List<UserAddress> userAddresses;
-    private List<String> fcmIds;
+    public String id;
+    public String provider;
+    public String ssoId;
+    public String username;
+    public String email;
+    public String mobile;
+    public String firstname;
+    public String lastname;
+    public String displayName;
 
-    private boolean deleted;
-    private UserLicenseInfoEntity licenseInfo;
-
-
-    public UserLicenseInfoEntity getLicenseInfo() {
-        return licenseInfo;
+    public String getId() {
+        return id;
     }
 
-    public void setLicenseInfo(UserLicenseInfoEntity licenseInfo) {
-        this.licenseInfo = licenseInfo;
+    public void setId(String id) {
+        this.id = id;
     }
 
-
-    public List<String> getFcmIds() {
-        return fcmIds;
+    public String getProvider() {
+        return provider;
     }
 
-    public void setFcmIds(List<String> fcmIds) {
-        this.fcmIds = fcmIds;
+    public void setProvider(String provider) {
+        this.provider = provider;
     }
 
-    public boolean isDeleted() {
-        return deleted;
+    public String getSsoId() {
+        return ssoId;
     }
 
-    public void setDeleted(boolean deleted) {
-        this.deleted = deleted;
+    public void setSsoId(String ssoId) {
+        this.ssoId = ssoId;
     }
 
-    public String getCarbookIdentifier() {
-        return carbookIdentifier;
+    public String getUsername() {
+        return username;
     }
 
-    public void setCarbookIdentifier(String carbookIdentifier) {
-        this.carbookIdentifier = carbookIdentifier;
+    public void setUsername(String username) {
+        this.username = username;
     }
 
-    public Date getUpdateTime() {
-        return updateTime;
+    public String getEmail() {
+        return email;
     }
 
-    public void setUpdateTime(Date updateTime) {
-        this.updateTime = updateTime;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
-    public List<String> getPhotoGallery() {
-        return photoGallery;
+    public String getMobile() {
+        return mobile;
     }
 
-    public void setPhotoGallery(List<String> photoGallery) {
-        this.photoGallery = photoGallery;
-    }
-
-    public List<String> getIconGallery() {
-        return iconGallery;
-    }
-
-    public void setIconGallery(List<String> iconGallery) {
-        this.iconGallery = iconGallery;
-    }
-
-    public String getProfileIconURL() {
-        return profileIconURL;
-    }
-
-    public void setProfileIconURL(String profileIconURL) {
-        this.profileIconURL = profileIconURL;
-    }
-
-    public List<String> getEmails() {
-        return emails;
-    }
-
-    public void setEmails(List<String> emails) {
-        this.emails = emails;
-    }
-
-    public List<String> getPhoneNumbers() {
-        return phoneNumbers;
-    }
-
-    public void setPhoneNumbers(List<String> phoneNumbers) {
-        this.phoneNumbers = phoneNumbers;
-    }
-
-    public Locale getUserLocale() {
-        return userLocale;
-    }
-
-    public void setUserLocale(Locale userLocale) {
-        this.userLocale = userLocale;
-    }
-
-    public Date getBirthday() {
-        return birthday;
-    }
-
-    public void setBirthday(Date birthday) {
-        this.birthday = birthday;
-    }
-
-    public String getUtcOffset() {
-        return utcOffset;
-    }
-
-    public void setUtcOffset(String utcOffset) {
-        this.utcOffset = utcOffset;
-    }
-
-    public AddressEntity getCurrentAddress() {
-        return currentAddress;
-    }
-
-    public void setCurrentAddress(AddressEntity currentAddress) {
-        this.currentAddress = currentAddress;
-    }
-
-    public List<UserAddress> getUserAddresses() {
-        return userAddresses;
-    }
-
-    public void setUserAddresses(List<UserAddress> userAddresses) {
-        this.userAddresses = userAddresses;
-    }
-
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getGender() {
-        return gender;
-    }
-
-    public void setGender(String gender) {
-        this.gender = gender;
-    }
-
-    @JsonIgnore
-    public String getEmailStatus() {
-        return emailStatus;
-    }
-
-    @JsonIgnore
-    public void setEmailStatus(String emailStatus) {
-        this.emailStatus = emailStatus;
-    }
-
-    public String getProfilePhotoURL() {
-        return profilePhotoURL;
-    }
-
-    public void setProfilePhotoURL(String profilePhotoURL) {
-        this.profilePhotoURL = profilePhotoURL;
-    }
-
-
-    public String getUserId() {
-        return userId;
-    }
-
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
-    public java.util.Date getCreateTime() {
-        return createTime;
-    }
-
-    public void setCreateTime(java.util.Date createTime) {
-        this.createTime = createTime;
-    }
-
-    public String getCurrentEMail() {
-        return currentEMail;
-    }
-
-    public void setCurrentEMail(String currentEMail) {
-        this.currentEMail = currentEMail;
+    public void setMobile(String mobile) {
+        this.mobile = mobile;
     }
 
     public String getFirstname() {
@@ -237,11 +78,19 @@ public class UserProfile {
         this.firstname = firstname;
     }
 
-    public String getDisplayname() {
-        return displayname;
+    public String getLastname() {
+        return lastname;
     }
 
-    public void setDisplayname(String displayname) {
-        this.displayname = displayname;
+    public void setLastname(String lastname) {
+        this.lastname = lastname;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 }
