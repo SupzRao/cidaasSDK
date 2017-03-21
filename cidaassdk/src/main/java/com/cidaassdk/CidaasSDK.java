@@ -26,9 +26,14 @@ import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.scottyab.aescrypt.AESCrypt;
+
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
@@ -49,12 +54,7 @@ public class CidaasSDK extends RelativeLayout {
     private static WebView webview_ = null;
     private boolean error_ = false;
     String internetError = "";
-    private SharedPreferences sp;
-
-    /*
-    *
-    *
-    * */
+    private static SharedPreferences sp = null;
     private String authorizationURL;
     private String tokenURL;
     private String clientId;
@@ -365,6 +365,22 @@ public class CidaasSDK extends RelativeLayout {
         return super.dispatchKeyEventPreIme(event);
     }
 
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK) {
+            if (webview_ != null) {
+                // on back from login screen close app
+                if (webview_.canGoBack()) {
+                    webview_.goBack();
+
+                } else {
+                    ((Activity) getContext()).finish();
+                }
+            }
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
 
     /*
         *
@@ -399,40 +415,45 @@ public class CidaasSDK extends RelativeLayout {
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
             view.loadUrl(url);
-            if (url.contains("error_code")) {
-                //Toast.makeText(loginActivity, R.string.warn_wrong_username_pswd, Toast.LENGTH_LONG).show();
-                return true;
-            } else {
-                if (url.contains("code=") && url.contains("calback.html")) {
-                    base = url.split("\\?");
-                    countString = base[0].split("&");
-                    Map<String, String> queryDataItems = new HashMap<>();
-                    String[] value_all = url.split("\\?");
-                    String[] queryData = value_all[1].split("&");
-                    for (int i = 0; i < queryData.length; i++) {
-                        if (queryData[i].split("=").length > 1) {
-                            queryDataItems.put(queryData[i].split("=")[0], queryData[i].split("=")[1]);
-                        }
-                    }
-                    // login
-                    CODE = queryDataItems.get("code");
-                    if (CODE != null) {
-                        if (!usedCodes.contains(CODE)) {
-                            usedCodes.add(CODE);
-                            if (CidaasConstants.isInternetAvailable(context)) {
-                                //  Get Access token Form CODE
-                                getAccessTokenService(tokenURL, CidaasConstants.REST_CONTENT_TYPE_URLENCODED, clientId,
-                                        redirectURI, CODE, clientSecret,
-                                        grantType);
-                            } else {
-                                internetError = "Try Again!!";
-                                getInternetErrorImage(layout, context, internetError);
+            try {
+                if (url.contains("error_code")) {
+                    //Toast.makeText(loginActivity, R.string.warn_wrong_username_pswd, Toast.LENGTH_LONG).show();
+                    return true;
+                } else {
+                    if (url.contains("code=") && url.contains("calback.html")) {
+                        base = url.split("\\?");
+                        countString = base[0].split("&");
+                        Map<String, String> queryDataItems = new HashMap<>();
+                        String[] value_all = url.split("\\?");
+                        String[] queryData = value_all[1].split("&");
+                        for (int i = 0; i < queryData.length; i++) {
+                            if (queryData[i].split("=").length > 1) {
+                                queryDataItems.put(queryData[i].split("=")[0], queryData[i].split("=")[1]);
                             }
                         }
+                        // login
+                        CODE = queryDataItems.get("code");
+                        if (CODE != null) {
+                            if (!usedCodes.contains(CODE)) {
+                                usedCodes.add(CODE);
+                                if (CidaasConstants.isInternetAvailable(context)) {
+                                    //  Get Access token Form CODE
+                                    getAccessTokenService(tokenURL, CidaasConstants.REST_CONTENT_TYPE_URLENCODED, clientId,
+                                            redirectURI, CODE, clientSecret,
+                                            grantType);
+                                } else {
+                                    internetError = getContext().getString(R.string.tryAgain);
+                                    getInternetErrorImage(layout, context, internetError);
+                                }
+                            }
 
+                        }
                     }
                 }
+            } catch (Exception ex) {
+                ex.printStackTrace();
             }
+
             return true;
         }
 
@@ -518,16 +539,32 @@ public class CidaasSDK extends RelativeLayout {
                             access_token[0] = loginEntity.getAccess_token().toString();
                             System.out.println(" access_token" + access_token[0]);
                             callback_.printMessage(access_token[0]);
-                            SharedPreferences.Editor editor = sp.edit();
-                            editor.putString("AccessToken", loginEntity.getAccess_token());
-                            editor.putString("RefreshToken", loginEntity.getRefresh_token());
-                            editor.putLong("ExpiresIn", loginEntity.getExpires_in());
-                            editor.commit();
+                            saveLoginDetails(loginEntity);
                             getUserDetails(access_token[0]);
                         }
                     });
         }
 
+    }
+
+    private void saveLoginDetails(LoginEntity loginEntity) {
+        SharedPreferences.Editor editor = sp.edit();
+        String salt = UUID.randomUUID().toString();
+        String en = null;
+        Calendar calendar = Calendar.getInstance();
+        long timeinmillis = calendar.getTimeInMillis();
+        long time = timeinmillis * 60 + loginEntity.getExpires_in() - 10;
+        try {
+            en = AESCrypt.encrypt(salt, loginEntity.getAccess_token());
+            editor.putString("AccessToken", en);
+            editor.putString("Salt", salt);
+            editor.putString("RefreshToken", loginEntity.getRefresh_token());
+            editor.putLong("ExpiresIn", time);
+            editor.commit();
+
+        } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        }
     }
 
     public void getUserDetails(String access_token) {
@@ -559,7 +596,65 @@ public class CidaasSDK extends RelativeLayout {
                         SharedPreferences.Editor editor = sp.edit();
                         editor.putString("UserID", userInfo.getId());
                         editor.commit();
+                    }
+                });
+    }
 
+    public void getAccessToken(String userId) {
+        String UserID = sp.getString("UserID", "");
+        Long ExpiresIn = sp.getLong("ExpiresIn", 0);
+        String AccessToken = sp.getString("AccessToken", "");
+        String RefreshToken = sp.getString("RefreshToken", "");
+        String Salt = sp.getString("Salt", "");
+        Calendar calendar = Calendar.getInstance();
+        long timeinmillis = calendar.getTimeInMillis();
+        long time = timeinmillis * 60;
+
+        if (UserID != "" && UserID.equals(userId)) {
+
+            if (ExpiresIn > time) {
+                try {
+                    String de = AESCrypt.decrypt(Salt, AccessToken);
+                    callback_.printMessage(de);
+                } catch (GeneralSecurityException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                getAccessTokenByRefreshToken(RefreshToken);
+
+            }
+        }
+    }
+
+    private void getAccessTokenByRefreshToken(String RefreshToken) {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://your.api.url/")
+                .addConverterFactory(JacksonConverterFactory.create())
+                .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                .build();
+        ICidaasAPI service = retrofit.create(ICidaasAPI.class);
+        service.getAccessTokenByRefreshToken(tokenURL, CidaasConstants.REST_CONTENT_TYPE_URLENCODED, clientId,
+                redirectURI, RefreshToken, clientSecret,
+                "refresh_token").subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<LoginEntity>() {
+                    @Override
+                    public void onCompleted() {
+                        System.out.println("Oncompleted");
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        error_ = true;
+                        error_description = e.getMessage();
+                        System.out.println("onError");
+                    }
+
+                    @Override
+                    public void onNext(LoginEntity loginEntity) {
+                        System.out.println("onNext");
+                        saveLoginDetails(loginEntity);
+                        callback_.printMessage("Refresh token :" + loginEntity.getAccess_token());
                     }
                 });
     }

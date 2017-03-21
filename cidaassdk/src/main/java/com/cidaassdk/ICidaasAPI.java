@@ -26,4 +26,14 @@ public interface ICidaasAPI {
 
     @GET
     Observable<UserProfile> getUserDetailsApi(@Url String url,@Header("access_token") String authorization);
+
+    @POST
+    Observable<LoginEntity> getAccessTokenByRefreshToken(@Url String url, @Header("Content-Type") String content_type,
+                                               @Query("client_id") String client_id,
+                                               @Query("redirect_uri") String redirect_uri,
+                                               @Query("refresh_token") String refresh_token,
+                                               @Query("client_secret") String client_secret,
+                                               @Query("grant_type") String grant_type);
+
+
 }

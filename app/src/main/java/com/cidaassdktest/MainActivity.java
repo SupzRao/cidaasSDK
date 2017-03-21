@@ -17,7 +17,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        layout_root= (RelativeLayout) findViewById(R.id.layout_root);
+        layout_root = (RelativeLayout) findViewById(R.id.layout_root);
         getView();
     }
 
@@ -52,5 +52,6 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         cidaasHelper.loadView(layout_root, getApplicationContext());
+        cidaasHelper.getAccessToken("57511b982ab79c0001a44232");
     }
 }
