@@ -551,7 +551,7 @@ public class CidaasSDK extends RelativeLayout {
         String salt = UUID.randomUUID().toString();
         String en = null;
         long timeinmillis = System.currentTimeMillis();
-        long time = timeinmillis * 60;
+        long time = timeinmillis /1000;
         time = time + loginEntity.getExpires_in() - 10;
         try {
             en = AESCrypt.encrypt(salt, loginEntity.getAccess_token());
@@ -606,7 +606,7 @@ public class CidaasSDK extends RelativeLayout {
         String RefreshToken = sp.getString("RefreshToken", "");
         String Salt = sp.getString("Salt", "");
         long timeinmillis = System.currentTimeMillis();
-        long time = timeinmillis * 60;
+        long time = timeinmillis /1000;
         System.out.println("Current Time: " + time + "Expires in: " + ExpiresIn);
         if (UserID != "" && UserID.equals(userId)) {
             if (ExpiresIn > time) {
@@ -620,7 +620,7 @@ public class CidaasSDK extends RelativeLayout {
                 getAccessTokenByRefreshToken(RefreshToken);
             }
         } else {
-            //TODO
+            callback_.printMessage("Error!");
         }
     }
 
