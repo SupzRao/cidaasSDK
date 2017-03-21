@@ -554,6 +554,7 @@ public class CidaasSDK extends RelativeLayout {
         Calendar calendar = Calendar.getInstance();
         long timeinmillis = calendar.getTimeInMillis();
         long time = timeinmillis * 60 + loginEntity.getExpires_in() - 10;
+
         try {
             en = AESCrypt.encrypt(salt, loginEntity.getAccess_token());
             editor.putString("AccessToken", en);
@@ -609,9 +610,8 @@ public class CidaasSDK extends RelativeLayout {
         Calendar calendar = Calendar.getInstance();
         long timeinmillis = calendar.getTimeInMillis();
         long time = timeinmillis * 60;
-
+        System.out.println("Current Time: " + time + "Expires in: " + ExpiresIn);
         if (UserID != "" && UserID.equals(userId)) {
-
             if (ExpiresIn > time) {
                 try {
                     String de = AESCrypt.decrypt(Salt, AccessToken);
@@ -623,6 +623,10 @@ public class CidaasSDK extends RelativeLayout {
                 getAccessTokenByRefreshToken(RefreshToken);
 
             }
+        }
+        else
+        {
+            //TODO
         }
     }
 
