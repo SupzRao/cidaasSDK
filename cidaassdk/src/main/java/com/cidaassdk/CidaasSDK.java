@@ -63,6 +63,18 @@ public class CidaasSDK extends RelativeLayout {
     public Icallback_ callback_;
     private String viewType;
     private String error_description = "";
+    private String userIdURL;
+
+    public String getUserIdURL() {
+        if(userIdURL==null)
+            return  "";
+        else
+            return userIdURL;
+    }
+
+    public void setUserIdURL(String userIdURL) {
+        this.userIdURL = userIdURL;
+    }
 
     public CidaasSDK(Context context) {
         super(context);
@@ -187,7 +199,7 @@ public class CidaasSDK extends RelativeLayout {
         /*
         * remove all the previous view in custom layout
         * */
-       // layout.removeAllViews();
+        // layout.removeAllViews();
         try {
             String errorMsg = "";
             if (CidaasConstants.isInternetAvailable(context)) {
@@ -220,7 +232,11 @@ public class CidaasSDK extends RelativeLayout {
                 } else if (getGrantType().equals("")) {
                     errorMsg = "GrantType Missing ";
                     getErrorImage(layout, context, errorMsg);
-                } else {
+                }
+                else if (getUserIdURL().equals("")) {
+                    errorMsg = "User ID URL Missing ";
+                    getErrorImage(layout, context, errorMsg);
+                }else {
                     String myUrl = constructURL();
                     webview_ = getInstanceOfWebview(context);
                     WebSettings settings = webview_.getSettings();
@@ -290,7 +306,7 @@ public class CidaasSDK extends RelativeLayout {
     }
 
     void getErrorImage(RelativeLayout layout, Context context, String errorMsg) {
-        ImageView image= new ImageView(context);
+        ImageView image = new ImageView(context);
         image.setImageDrawable(context.getResources().getDrawable(R.drawable.settings));
         LayoutParams params = new LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -400,7 +416,7 @@ public class CidaasSDK extends RelativeLayout {
                             usedCodes.add(CODE);
                             if (CidaasConstants.isInternetAvailable(context)) {
                                 //  Get Access token Form CODE
-                                getAccessTokenService( tokenURL, CidaasConstants.REST_CONTENT_TYPE_URLENCODED, clientId,
+                                getAccessTokenService(tokenURL, CidaasConstants.REST_CONTENT_TYPE_URLENCODED, clientId,
                                         redirectURI, CODE, clientSecret,
                                         grantType);
                             } else {
@@ -437,6 +453,7 @@ public class CidaasSDK extends RelativeLayout {
             error_description = "SSL error!!";
             errorLayout();
         }
+
         @Override
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
             super.onPageStarted(view, url, favicon);
@@ -454,7 +471,7 @@ public class CidaasSDK extends RelativeLayout {
         }
 
         void errorLayout() {
-           // layout.removeAllViews();
+            // layout.removeAllViews();
             getErrorImage(layout, context, error_description);
             System.out.println("Error has occured!");
             progressBar.setVisibility(View.GONE);
@@ -464,7 +481,7 @@ public class CidaasSDK extends RelativeLayout {
         /**
          * Call function get access token
          */
-        public void getAccessTokenService( String tokenURL, String content_type, String client_id,
+        public void getAccessTokenService(String tokenURL, String content_type, String client_id,
                                           String redirect_uri, String code, String client_secret, String
                                                   grant_type) {
             final String[] access_token = new String[1];
@@ -496,10 +513,42 @@ public class CidaasSDK extends RelativeLayout {
                             access_token[0] = loginEntity.getAccess_token().toString();
                             System.out.println(" access_token" + access_token[0]);
                             callback_.printMessage(access_token[0]);
+                            getUserDetails(access_token[0]);
                         }
                     });
         }
 
+    }
+
+    public void getUserDetails(String access_token) {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("https://your.api.url/")
+                .addConverterFactory(JacksonConverterFactory.create())
+                .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                .build();
+        ICidaasAPI service = retrofit.create(ICidaasAPI.class);
+        service.getUserDetailsApi(getUserIdURL(),access_token).subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Observer<UserProfile>() {
+                    @Override
+                    public void onCompleted() {
+                        System.out.println("Get user profile completed ");
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        //If something went wrong goto login screen
+                        error_ = true;
+                        error_description = e.getMessage();
+                        System.out.println("Get user profile err " + e.getMessage());
+                    }
+
+                    @Override
+                    public void onNext(UserProfile userInfo) {
+                        System.out.println("Get user profile res User id : " + userInfo.getUserId());
+
+                    }
+                });
     }
 }
 

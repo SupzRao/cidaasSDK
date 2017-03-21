@@ -1,6 +1,7 @@
 package com.cidaassdk;
 
 
+import retrofit2.http.GET;
 import retrofit2.http.Header;
 import retrofit2.http.POST;
 import retrofit2.http.Query;
@@ -21,4 +22,8 @@ public interface ICidaasAPI {
                                                @Query("code") String code,
                                                @Query("client_secret") String client_secret,
                                                @Query("grant_type") String grant_type);
+
+
+    @GET
+    Observable<UserProfile> getUserDetailsApi(@Url String url,@Header("access_token") String authorization);
 }

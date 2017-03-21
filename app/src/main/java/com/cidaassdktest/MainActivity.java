@@ -40,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
         cidaasHelper.setClientId("74af56f6dc104bd6bb6d145f1ba0665d");
         cidaasHelper.setRedirectURI("https://apis.test.carbookplus.com/user-ui/html/calback.html");
         cidaasHelper.setResponseType(CidaasConstants.RESPONSE_TYPE);
+        cidaasHelper.setUserIdURL("https://apis.test.carbookplus.com/oauth2-usermanagement/oauth2/userinfo");
         cidaasHelper.setViewType(CidaasConstants.VIEW_TYPE);
         /*
         * create call back to get access token and show
