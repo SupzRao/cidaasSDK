@@ -51,32 +51,23 @@ public class CidaasSDK extends RelativeLayout {
     private RelativeLayout content;
     ProgressBar progressBar;
     private static WebView webview_ = null;
-    private boolean error_ = false;
+    private static boolean error_ = false;
     String internetError = "";
     private static SharedPreferences sp = null;
     private String authorizationURL;
-    private String tokenURL;
-    private String clientId;
-    private String clientSecret;
-    private String grantType;
-    private String responseType;
+    private static String tokenURL;
+    private static String logoutURL;
+    private static String clientId;
+    private static String clientSecret;
+    private static String grantType;
+    private static String responseType;
     private View view;
-    private String redirectURI;
-    public Icallback_ callback_;
-    private String viewType;
-    private String error_description = "";
-    private String userIdURL;
-
-    public String getUserIdURL() {
-        if (userIdURL == null)
-            return "";
-        else
-            return userIdURL;
-    }
-
-    public void setUserIdURL(String userIdURL) {
-        this.userIdURL = userIdURL;
-    }
+    private static String redirectURI;
+    public static Icallback_ callback_;
+    private static String viewType;
+    private static String error_description = "";
+    private static String userIdURL;
+    static SharedPreferences.Editor editor;
 
     public CidaasSDK(Context context) {
         super(context);
@@ -98,12 +89,33 @@ public class CidaasSDK extends RelativeLayout {
         init(context);
     }
 
+    public static String getUserIdURL() {
+        if (userIdURL == null)
+            return "";
+        else
+            return userIdURL;
+    }
+
+    public void setUserIdURL(String userIdURL) {
+        this.userIdURL = userIdURL;
+    }
 
     public String getViewType() {
         if (viewType == null)
             return "";
         else
             return viewType;
+    }
+
+    private static String getLogoutURL() {
+        if (logoutURL == null)
+            return "";
+        else
+            return logoutURL;
+    }
+
+    public void setLogoutURL(String logoutURL) {
+        this.logoutURL = logoutURL;
     }
 
     public void setViewType(String viewType) {
@@ -238,6 +250,9 @@ public class CidaasSDK extends RelativeLayout {
                 } else if (getUserIdURL().equals("")) {
                     errorMsg = "User ID URL Missing ";
                     getErrorImage(layout, context, errorMsg);
+                } else if (getLogoutURL().equals("")) {
+                    errorMsg = "Logout URL Missing ";
+                    getErrorImage(layout, context, errorMsg);
                 } else {
                     String myUrl = constructURL();
                     webview_ = getInstanceOfWebview(context);
@@ -344,7 +359,7 @@ public class CidaasSDK extends RelativeLayout {
         content = (RelativeLayout) rootView.findViewById(R.id.content);
         webview_ = getInstanceOfWebview(context);
         sp = PreferenceManager.getDefaultSharedPreferences(context);
-
+        editor = sp.edit();
     }
 
     @Override
@@ -537,21 +552,25 @@ public class CidaasSDK extends RelativeLayout {
                         public void onNext(LoginEntity loginEntity) {
                             access_token[0] = loginEntity.getAccess_token().toString();
                             System.out.println(" access_token" + access_token[0]);
-                            callback_.printMessage(access_token[0]);
+                            ResponseEntity responseEntity = new ResponseEntity();
+                            responseEntity.setAccess_token(loginEntity.getAccess_token());
+                            responseEntity.setError(null);
+                            responseEntity.setSuccess(true);
+                            callback_.getLoginResponse(responseEntity);
                             saveLoginDetails(loginEntity);
-                            getUserDetails(access_token[0]);
+                            getUserDetailsByAccessToken(access_token[0],context);
                         }
                     });
         }
 
     }
 
-    private void saveLoginDetails(LoginEntity loginEntity) {
-        SharedPreferences.Editor editor = sp.edit();
+    private static void saveLoginDetails(LoginEntity loginEntity) {
+
         String salt = UUID.randomUUID().toString();
         String en = null;
         long timeinmillis = System.currentTimeMillis();
-        long time = timeinmillis /1000;
+        long time = timeinmillis / 1000;
         time = time + loginEntity.getExpires_in() - 10;
         try {
             en = AESCrypt.encrypt(salt, loginEntity.getAccess_token());
@@ -560,13 +579,14 @@ public class CidaasSDK extends RelativeLayout {
             editor.putString("RefreshToken", loginEntity.getRefresh_token());
             editor.putLong("ExpiresIn", time);
             editor.commit();
-
         } catch (GeneralSecurityException e) {
             e.printStackTrace();
         }
     }
 
-    public void getUserDetails(String access_token) {
+    public static UserProfile getUserDetailsByAccessToken(String access_token, final Context context) {
+        final UserProfile[] userProfile = {new UserProfile()};
+        final ResponseEntity responseEntity = new ResponseEntity();
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://your.api.url/")
                 .addConverterFactory(JacksonConverterFactory.create())
@@ -576,55 +596,78 @@ public class CidaasSDK extends RelativeLayout {
         service.getUserDetailsApi(getUserIdURL(), access_token).subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Observer<UserProfile>() {
-                    @Override
-                    public void onCompleted() {
-                        System.out.println("Get user profile completed ");
-                    }
+                               @Override
+                               public void onCompleted() {
+                                   System.out.println("Get user profile completed ");
+                               }
 
-                    @Override
-                    public void onError(Throwable e) {
-                        //If something went wrong goto login screen
-                        error_ = true;
-                        error_description = e.getMessage();
-                        System.out.println("Get user profile err " + e.getMessage());
-                    }
+                               @Override
+                               public void onError(Throwable e) {
+                                   //If something went wrong goto login screen
+                                   error_ = true;
+                                   error_description = e.getMessage();
+                                   System.out.println("Get user profile err " + e.getMessage());
+                               }
 
-                    @Override
-                    public void onNext(UserProfile userInfo) {
-                        System.out.println("Get user profile res User id : " + userInfo.getId());
-                        SharedPreferences.Editor editor = sp.edit();
-                        editor.putString("UserID", userInfo.getId());
-                        editor.commit();
-                    }
-                });
+                               @Override
+                               public void onNext(UserProfile userInfo) {
+                                   userProfile[0] = userInfo;
+                                   System.out.println("Get user profile res User id : " + userInfo.getId());
+                                   if (sp == null) {
+                                       sp = PreferenceManager.getDefaultSharedPreferences(context);
+                                   } else if (editor == null) {
+                                       editor = sp.edit();
+                                   } else {
+                                       editor.putString("UserID", userInfo.getId());
+                                       editor.commit();
+                                       // callback_.getResponse(userInfo.getId());
+                                   }
+                               }
+                           }
+                );
+        if (userProfile[0] != null)
+            return userProfile[0];
+        else
+            return null;
     }
 
-    public void getAccessToken(String userId) {
+    public static void getAccessTokenByUserId(String userId) {
         String UserID = sp.getString("UserID", "");
         Long ExpiresIn = sp.getLong("ExpiresIn", 0);
         String AccessToken = sp.getString("AccessToken", "");
         String RefreshToken = sp.getString("RefreshToken", "");
         String Salt = sp.getString("Salt", "");
         long timeinmillis = System.currentTimeMillis();
-        long time = timeinmillis /1000;
+        long time = timeinmillis / 1000;
         System.out.println("Current Time: " + time + "Expires in: " + ExpiresIn);
+        ResponseEntity responseEntity = new ResponseEntity();
         if (UserID != "" && UserID.equals(userId)) {
+
             if (ExpiresIn > time) {
                 try {
                     String de = AESCrypt.decrypt(Salt, AccessToken);
-                    callback_.printMessage("access token by user id shared prefs:" + de);
+                    responseEntity.setAccess_token(de);
+                    responseEntity.setError("Success");
+                    responseEntity.setSuccess(true);
+                    callback_.getLoginResponse(responseEntity);
                 } catch (GeneralSecurityException e) {
                     e.printStackTrace();
                 }
             } else {
+
                 getAccessTokenByRefreshToken(RefreshToken);
             }
         } else {
-            callback_.printMessage("Error!");
+            responseEntity.setAccess_token(null);
+            responseEntity.setError("UserID mismatch");
+            responseEntity.setSuccess(false);
+            callback_.getLoginResponse(responseEntity);
         }
     }
 
-    private void getAccessTokenByRefreshToken(String RefreshToken) {
+    private static void getAccessTokenByRefreshToken(String RefreshToken) {
+        final ResponseEntity responseEntity = new ResponseEntity();
+
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://your.api.url/")
                 .addConverterFactory(JacksonConverterFactory.create())
@@ -652,9 +695,48 @@ public class CidaasSDK extends RelativeLayout {
                     public void onNext(LoginEntity loginEntity) {
                         System.out.println("onNext");
                         saveLoginDetails(loginEntity);
-                        callback_.printMessage("Refresh token :" + loginEntity.getAccess_token());
+                        responseEntity.setError(null);
+                        responseEntity.setSuccess(true);
+                        responseEntity.setAccess_token(loginEntity.getAccess_token());
+                        callback_.getLoginResponse(responseEntity);
                     }
                 });
+    }
+
+    public static void logoutUser(String UserId, Context context) {
+        if (CidaasConstants.isInternetAvailable(context)) {
+            Retrofit retrofit = new Retrofit.Builder()
+                    .baseUrl("https://your.api.url/")
+                    .addConverterFactory(JacksonConverterFactory.create())
+                    .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
+                    .build();
+            ICidaasAPI service = retrofit.create(ICidaasAPI.class);
+            service.logoutUser(getLogoutURL(), UserId).subscribeOn(Schedulers.newThread())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(new Observer<Void>() {
+
+                        @Override
+                        public void onCompleted() {
+                            System.out.println("Log out Oncompleted");
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            error_ = true;
+                            error_description = e.getMessage();
+                            System.out.println("Log out onError");
+                        }
+
+                        @Override
+                        public void onNext(Void aVoid) {
+                            System.out.println("Log out onNext");
+                        }
+                    });
+        } else {
+
+            editor.clear();
+        }
+
     }
 }
 

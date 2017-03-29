@@ -3,11 +3,11 @@ package com.cidaassdktest;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.widget.RelativeLayout;
-import android.widget.Toast;
 
 import com.cidaassdk.CidaasConstants;
 import com.cidaassdk.CidaasSDK;
 import com.cidaassdk.Icallback_;
+import com.cidaassdk.ResponseEntity;
 
 public class MainActivity extends AppCompatActivity {
     static CidaasSDK cidaasHelper = null;
@@ -42,16 +42,20 @@ public class MainActivity extends AppCompatActivity {
         cidaasHelper.setResponseType(CidaasConstants.RESPONSE_TYPE);
         cidaasHelper.setUserIdURL("https://apis.test.carbookplus.com/oauth2-usermanagement/oauth2/userinfo");
         cidaasHelper.setViewType(CidaasConstants.VIEW_TYPE);
+        cidaasHelper.setLogoutURL("https://apis.test.carbookplus.com/oauth2-usermanagement/oauth2/logoutuser");
         /*
         * create call back to get access token and show
         * */
         cidaasHelper.callback_ = new Icallback_() {
             @Override
-            public void printMessage(String msg) {
-                Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+            public void getLoginResponse(ResponseEntity entity) {
+                // Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
+                CidaasSDK.getUserDetailsByAccessToken(entity.getAccess_token(),getApplicationContext());
+                CidaasSDK.getAccessTokenByUserId("57511b982ab79c0001a44232");
+                CidaasSDK.logoutUser("57511b982ab79c0001a44232",getApplicationContext());
             }
         };
         cidaasHelper.loadView(layout_root, getApplicationContext());
-        cidaasHelper.getAccessToken("57511b982ab79c0001a44232");
+
     }
 }

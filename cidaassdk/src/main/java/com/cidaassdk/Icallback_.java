@@ -5,5 +5,5 @@ package com.cidaassdk;
  */
 
 public interface Icallback_ {
-    public void printMessage(String msg);
+    public void getLoginResponse (ResponseEntity msg);
 }
