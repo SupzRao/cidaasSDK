@@ -35,13 +35,9 @@ public interface ICidaasAPI {
                                                          @Query("refresh_token") String refresh_token,
                                                          @Query("client_secret") String client_secret,
                                                          @Query("grant_type") String grant_type);
-
-    /*
-    *https://apis.test.carbookplus.com/oauth2-usermanagement/oauth2/logoutuser
-    */
-    @POST
-    Observable<Void> logoutUser(@Url String url,
-                          @Query("userId") String userId);
-
+    //log out user api
+    @POST()
+    Observable<Void> logoutUser(@Url String url,@Query("access_token") String path_access_token,
+                                      @Header("access_token") String access_token);
 
 }

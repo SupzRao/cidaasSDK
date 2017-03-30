@@ -28,11 +28,25 @@ import android.widget.TextView;
 
 import com.scottyab.aescrypt.AESCrypt;
 
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpression;
+import javax.xml.xpath.XPathFactory;
 
 import retrofit2.Retrofit;
 import retrofit2.adapter.rxjava.RxJavaCallAdapterFactory;
@@ -68,39 +82,31 @@ public class CidaasSDK extends RelativeLayout {
     private static String error_description = "";
     private static String userIdURL;
     static SharedPreferences.Editor editor;
+    private Document propertiesXML;
+    static CidaasSDK cidaasHelper;
 
     public CidaasSDK(Context context) {
         super(context);
         init(context);
-
     }
-
-
-    public WebView getInstanceOfWebview(Context context) {
-        if (webview_ == null) {
-            webview_ = new WebView(context);
-        }
-        return webview_;
-    }
-
 
     public CidaasSDK(Context context, AttributeSet attrs) {
         super(context, attrs);
         init(context);
     }
-
-    public static String getUserIdURL() {
+    private WebView getInstanceOfWebview(Context context) {
+        if (webview_ == null) {
+            webview_ = new WebView(context);
+        }
+        return webview_;
+    }
+    private static String getUserIdURL() {
         if (userIdURL == null)
             return "";
         else
             return userIdURL;
     }
-
-    public void setUserIdURL(String userIdURL) {
-        this.userIdURL = userIdURL;
-    }
-
-    public String getViewType() {
+    private String getViewType() {
         if (viewType == null)
             return "";
         else
@@ -114,103 +120,67 @@ public class CidaasSDK extends RelativeLayout {
             return logoutURL;
     }
 
-    public void setLogoutURL(String logoutURL) {
-        this.logoutURL = logoutURL;
-    }
 
-    public void setViewType(String viewType) {
-        this.viewType = viewType;
-    }
-
-
-    public void setView(View view) {
-        this.view = view;
-    }
-
-    public String getClientId() {
+    private String getClientId() {
         if (clientId == null)
             return "";
         else
             return clientId;
     }
 
-    public void setClientId(String clientId) {
-        this.clientId = clientId;
-    }
 
-    public String getRedirectURI() {
+    private String getRedirectURI() {
         if (redirectURI == null)
             return "";
         else
             return redirectURI;
     }
 
-    public void setRedirectURI(String redirectURI) {
-        this.redirectURI = redirectURI;
-    }
 
-    public String getResponseType() {
+    private String getResponseType() {
         if (responseType == null)
-            return "";
+            return CidaasConstants.RESPONSE_TYPE;
         else
             return responseType;
     }
 
-    public String getAuthorizationURL() {
+    private String getAuthorizationURL() {
         if (authorizationURL == null)
             return "";
         else
             return authorizationURL;
     }
 
-    public void setAuthorizationURL(String authorizationURL) {
-        this.authorizationURL = authorizationURL;
-    }
 
-    public String getTokenURL() {
+    private String getTokenURL() {
         if (tokenURL == null)
             return "";
         else
             return tokenURL;
     }
 
-    public void setTokenURL(String tokenURL) {
-        this.tokenURL = tokenURL;
-    }
 
-    public String getClientSecret() {
+    private String getClientSecret() {
         if (clientSecret == null)
             return "";
         else
             return clientSecret;
     }
 
-    public void setClientSecret(String clientSecret) {
-        this.clientSecret = clientSecret;
-    }
 
-    public String getGrantType() {
+    private String getGrantType() {
         if (grantType == null)
-            return "";
+            return CidaasConstants.GRANT_TYPE;
         else
             return grantType;
     }
 
 
-    public void setGrantType(String grantType) {
-        this.grantType = grantType;
-    }
-
-    public void setResponseType(String responseType) {
-
-        this.responseType = responseType;
-    }
-
     /*
     * Loading view WebView dynamically so that loads generated URL
     *
     * */
-    public void loadView(final RelativeLayout layout, final Context context) {
+    public void login(final RelativeLayout layout, final Context context) {
         /*
         * remove all the previous view in custom layout
         * */
@@ -281,7 +251,6 @@ public class CidaasSDK extends RelativeLayout {
                     params1.addRule(RelativeLayout.CENTER_IN_PARENT, webview_.getId());
                     layout.addView(webview_, params);
                     layout.addView(progressBar, params1);
-                    setView(layout);
                 }
 
             } else {
@@ -315,7 +284,7 @@ public class CidaasSDK extends RelativeLayout {
         button.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                loadView(layout, context);
+                login(layout, context);
             }
         });
         layout.addView(button, params1);
@@ -354,7 +323,7 @@ public class CidaasSDK extends RelativeLayout {
     }
 
 
-    public void init(Context context) {
+    private void init(Context context) {
         View rootView = inflate(context, R.layout.layout_fragment, this);
         content = (RelativeLayout) rootView.findViewById(R.id.content);
         webview_ = getInstanceOfWebview(context);
@@ -394,6 +363,74 @@ public class CidaasSDK extends RelativeLayout {
             return true;
         }
         return super.onKeyDown(keyCode, event);
+    }
+
+    /*
+    * User has to send their file mainteained
+    * p
+    *
+    * */
+    public void setURLFile(InputStream inputStream) {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        byte buf[] = new byte[1024];
+        int len;
+        try {
+            while ((len = inputStream.read(buf)) != -1) {
+                outputStream.write(buf, 0, len);
+            }
+            outputStream.close();
+            inputStream.close();
+            propertiesXML = obtenerDocumentDeByte(outputStream.toByteArray());
+            XPathFactory xPathfactory = XPathFactory.newInstance();
+            XPath xpath = xPathfactory.newXPath();
+            XPathExpression expr = xpath.compile("//resources/item[@string]");
+            NodeList nl = (NodeList) expr.evaluate(propertiesXML, XPathConstants.NODESET);
+            NodeList nodeList = propertiesXML.getElementsByTagName("item");
+            for (int x = 0, size = nodeList.getLength(); x < size; x++) {
+                if (nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.RedirectURI))) {
+                    redirectURI = nodeList.item(x).getTextContent().trim();
+                } /*else if (nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.ResponseType))) {
+                    responseType = nodeList.item(x).getTextContent().trim();
+                }*/ else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.ClientId)))) {
+                    clientId = nodeList.item(x).getTextContent().trim();
+                } else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.ViewType)))) {
+                    viewType = nodeList.item(x).getTextContent().trim();
+                } else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.ClientSecret)))) {
+                    clientSecret = nodeList.item(x).getTextContent().trim();
+                } else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.TokenURL)))) {
+                    tokenURL = nodeList.item(x).getTextContent().trim();
+                } /*else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.GrantType)))) {
+                    grantType = nodeList.item(x).getTextContent().trim();
+                }*/ else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.UserIdURL)))) {
+                    userIdURL = nodeList.item(x).getTextContent().trim();
+                } else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.LogoutURL)))) {
+                    logoutURL = nodeList.item(x).getTextContent().trim();
+                } else if ((nodeList.item(x).getAttributes().getNamedItem("name").getNodeValue().
+                        equalsIgnoreCase(getContext().getString(R.string.AuthorizationURL)))) {
+                    authorizationURL = nodeList.item(x).getTextContent().trim();
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private Document obtenerDocumentDeByte(byte[] documentoXml) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        DocumentBuilder builder = factory.newDocumentBuilder();
+        return builder.parse(new ByteArrayInputStream(documentoXml));
     }
 
     /*
@@ -452,7 +489,7 @@ public class CidaasSDK extends RelativeLayout {
                                 usedCodes.add(CODE);
                                 if (CidaasConstants.isInternetAvailable(context)) {
                                     //  Get Access token Form CODE
-                                    getAccessTokenService(tokenURL, CidaasConstants.REST_CONTENT_TYPE_URLENCODED, clientId,
+                                    getAccessToken(tokenURL, CidaasConstants.REST_CONTENT_TYPE_URLENCODED, clientId,
                                             redirectURI, CODE, clientSecret,
                                             grantType);
                                 } else {
@@ -521,9 +558,9 @@ public class CidaasSDK extends RelativeLayout {
         /**
          * Call function get access token
          */
-        public void getAccessTokenService(String tokenURL, String content_type, String client_id,
-                                          String redirect_uri, String code, String client_secret, String
-                                                  grant_type) {
+        public void getAccessToken(String tokenURL, String content_type, String client_id,
+                                   String redirect_uri, String code, String client_secret, String
+                                           grant_type) {
             final String[] access_token = new String[1];
             Retrofit retrofit = new Retrofit.Builder()
                     .baseUrl("https://your.api.url/")
@@ -550,15 +587,15 @@ public class CidaasSDK extends RelativeLayout {
 
                         @Override
                         public void onNext(LoginEntity loginEntity) {
-                            access_token[0] = loginEntity.getAccess_token().toString();
+                            access_token[0] = loginEntity.getAccess_token();
                             System.out.println(" access_token" + access_token[0]);
                             ResponseEntity responseEntity = new ResponseEntity();
                             responseEntity.setAccess_token(loginEntity.getAccess_token());
                             responseEntity.setError(null);
                             responseEntity.setSuccess(true);
-                            callback_.getLoginResponse(responseEntity);
+                            callback_.getResponse(responseEntity);
                             saveLoginDetails(loginEntity);
-                            getUserDetailsByAccessToken(access_token[0], context);
+                            getUserInfoFromAccessToken(access_token[0], context);
                         }
                     });
         }
@@ -574,17 +611,17 @@ public class CidaasSDK extends RelativeLayout {
         time = time + loginEntity.getExpires_in() - 10;
         try {
             en = AESCrypt.encrypt(salt, loginEntity.getAccess_token());
-            editor.putString("AccessToken", en);
-            editor.putString("Salt", salt);
-            editor.putString("RefreshToken", loginEntity.getRefresh_token());
-            editor.putLong("ExpiresIn", time);
+            editor.putString("CidaasAccessToken", en);
+            editor.putString("CidaasSalt", salt);
+            editor.putString("CidaasRefreshToken", loginEntity.getRefresh_token());
+            editor.putLong("CidaasExpiresIn", time);
             editor.commit();
         } catch (GeneralSecurityException e) {
             e.printStackTrace();
         }
     }
 
-    public static UserProfile getUserDetailsByAccessToken(String access_token, final Context context) {
+    public static UserProfile getUserInfoFromAccessToken(String access_token, final Context context) {
         final UserProfile[] userProfile = {new UserProfile()};
         final ResponseEntity responseEntity = new ResponseEntity();
         Retrofit retrofit = new Retrofit.Builder()
@@ -618,9 +655,9 @@ public class CidaasSDK extends RelativeLayout {
                                    } else if (editor == null) {
                                        editor = sp.edit();
                                    } else {
-                                       editor.putString("UserID", userInfo.getId());
+                                       editor.putString("CidaasUserID", userInfo.getId());
                                        editor.commit();
-                                       // callback_.getResponse(userInfo.getId());
+
                                    }
                                }
                            }
@@ -631,7 +668,7 @@ public class CidaasSDK extends RelativeLayout {
             return null;
     }
 
-    public static void getAccessTokenByUserId(String userId) {
+    public static ResponseEntity getAccessTokenByUserId(String userId) {
         String UserID = sp.getString("UserID", "");
         Long ExpiresIn = sp.getLong("ExpiresIn", 0);
         String AccessToken = sp.getString("AccessToken", "");
@@ -649,25 +686,25 @@ public class CidaasSDK extends RelativeLayout {
                     responseEntity.setAccess_token(de);
                     responseEntity.setError("Success");
                     responseEntity.setSuccess(true);
-                    callback_.getLoginResponse(responseEntity);
+
                 } catch (GeneralSecurityException e) {
                     e.printStackTrace();
                 }
+
             } else {
 
-                getAccessTokenByRefreshToken(RefreshToken);
+                responseEntity = getAccessTokenByRefreshToken(RefreshToken);
             }
         } else {
             responseEntity.setAccess_token(null);
-            responseEntity.setError("UserID mismatch");
+            responseEntity.setError("Invalid UserID!!");
             responseEntity.setSuccess(false);
-            callback_.getLoginResponse(responseEntity);
         }
+        return responseEntity;
     }
 
-    private static void getAccessTokenByRefreshToken(String RefreshToken) {
+    private static ResponseEntity getAccessTokenByRefreshToken(String RefreshToken) {
         final ResponseEntity responseEntity = new ResponseEntity();
-
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://your.api.url/")
                 .addConverterFactory(JacksonConverterFactory.create())
@@ -689,6 +726,9 @@ public class CidaasSDK extends RelativeLayout {
                         error_ = true;
                         error_description = e.getMessage();
                         System.out.println("onError");
+                        responseEntity.setError(e.getMessage());
+                        responseEntity.setSuccess(false);
+                        responseEntity.setAccess_token(null);
                     }
 
                     @Override
@@ -698,14 +738,20 @@ public class CidaasSDK extends RelativeLayout {
                         responseEntity.setError(null);
                         responseEntity.setSuccess(true);
                         responseEntity.setAccess_token(loginEntity.getAccess_token());
-                        callback_.getLoginResponse(responseEntity);
                     }
                 });
+        return responseEntity;
     }
 
-    public static void logoutUser(String UserId, Context context) {
+    public static CidaasSDK getCidaasSDKInst(Context context) {
+        if (cidaasHelper == null) {
+            cidaasHelper = new CidaasSDK(context);
+        }
+        return cidaasHelper;
+    }
 
-        String UserID = sp.getString("UserID", "");
+    public static void logout(String UserId, Context context) {
+        ResponseEntity responseEntity = getAccessTokenByUserId(UserId);
         if (CidaasConstants.isInternetAvailable(context)) {
             Retrofit retrofit = new Retrofit.Builder()
                     .baseUrl("https://your.api.url/")
@@ -713,7 +759,8 @@ public class CidaasSDK extends RelativeLayout {
                     .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
                     .build();
             ICidaasAPI service = retrofit.create(ICidaasAPI.class);
-            service.logoutUser(getLogoutURL(), UserID).subscribeOn(Schedulers.newThread())
+            service.logoutUser(getLogoutURL(), responseEntity.getAccess_token(), responseEntity.getAccess_token())
+                    .subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(new Observer<Void>() {
 
@@ -727,16 +774,19 @@ public class CidaasSDK extends RelativeLayout {
                             error_ = true;
                             error_description = e.getMessage();
                             System.out.println("Log out onError");
+
                         }
 
                         @Override
                         public void onNext(Void aVoid) {
                             System.out.println("Log out onNext");
+                            editor.clear();
+                            editor.commit();
                         }
                     });
         } else {
-
             editor.clear();
+            editor.commit();
         }
 
     }
