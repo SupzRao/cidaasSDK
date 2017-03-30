@@ -346,7 +346,7 @@ public class CidaasSDK extends RelativeLayout {
     * generate URL by given redirectURI and client id
     *
     * */
-    public String constructURL() {
+    private String constructURL() {
 
         return getAuthorizationURL() + "?redirect_uri=" + getRedirectURI() +
                 "&response_type=" + getResponseType() + "&client_id=" +
@@ -558,7 +558,7 @@ public class CidaasSDK extends RelativeLayout {
                             responseEntity.setSuccess(true);
                             callback_.getLoginResponse(responseEntity);
                             saveLoginDetails(loginEntity);
-                            getUserDetailsByAccessToken(access_token[0],context);
+                            getUserDetailsByAccessToken(access_token[0], context);
                         }
                     });
         }
@@ -704,6 +704,8 @@ public class CidaasSDK extends RelativeLayout {
     }
 
     public static void logoutUser(String UserId, Context context) {
+
+        String UserID = sp.getString("UserID", "");
         if (CidaasConstants.isInternetAvailable(context)) {
             Retrofit retrofit = new Retrofit.Builder()
                     .baseUrl("https://your.api.url/")
@@ -711,7 +713,7 @@ public class CidaasSDK extends RelativeLayout {
                     .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
                     .build();
             ICidaasAPI service = retrofit.create(ICidaasAPI.class);
-            service.logoutUser(getLogoutURL(), UserId).subscribeOn(Schedulers.newThread())
+            service.logoutUser(getLogoutURL(), UserID).subscribeOn(Schedulers.newThread())
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribe(new Observer<Void>() {
 

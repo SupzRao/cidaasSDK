@@ -2,7 +2,10 @@ package com.cidaassdktest;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.view.View;
+import android.widget.Button;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import com.cidaassdk.CidaasConstants;
 import com.cidaassdk.CidaasSDK;
@@ -12,13 +15,21 @@ import com.cidaassdk.ResponseEntity;
 public class MainActivity extends AppCompatActivity {
     static CidaasSDK cidaasHelper = null;
     RelativeLayout layout_root;
+    Button logout;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         layout_root = (RelativeLayout) findViewById(R.id.layout_root);
+        logout = (Button) findViewById(R.id.logout);
         getView();
+        logout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CidaasSDK.logoutUser("57511b982ab79c0001a44232", getApplicationContext());
+            }
+        });
     }
 
     CidaasSDK getCidaasSDKInst() {
@@ -49,13 +60,13 @@ public class MainActivity extends AppCompatActivity {
         cidaasHelper.callback_ = new Icallback_() {
             @Override
             public void getLoginResponse(ResponseEntity entity) {
-                // Toast.makeText(MainActivity.this, msg, Toast.LENGTH_SHORT).show();
-                CidaasSDK.getUserDetailsByAccessToken(entity.getAccess_token(),getApplicationContext());
-                CidaasSDK.getAccessTokenByUserId("57511b982ab79c0001a44232");
-                CidaasSDK.logoutUser("57511b982ab79c0001a44232",getApplicationContext());
+                Toast.makeText(MainActivity.this, entity.getAccess_token(), Toast.LENGTH_SHORT).show();
+                //    CidaasSDK.getUserDetailsByAccessToken(entity.getAccess_token(), getApplicationContext());
+
             }
         };
         cidaasHelper.loadView(layout_root, getApplicationContext());
+        // CidaasSDK.getAccessTokenByUserId("57511b982ab79c0001a44232");
 
     }
 }
