@@ -13,7 +13,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.cidaassdk.CidaasSDK;
-import com.cidaassdk.Icallback_;
 import com.cidaassdk.ResponseEntity;
 import com.cidaassdk.UserProfile;
 
@@ -38,25 +37,6 @@ public class MainActivity extends AppCompatActivity {
         logout = (Button) findViewById(R.id.logout);
         usrProf = (Button) findViewById(R.id.usrProf);
         textView_user = (TextView) findViewById(R.id.textView_user);
-        getView();
-        logout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                CidaasSDK.logout("5774adcdb3cb1f0001ad2e4a", getApplicationContext());
-            }
-        });
-        usrProf.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String AccessToken = sp.getString("Access_Token", "");
-                UserProfile userProf = CidaasSDK.getUserInfoFromAccessToken(AccessToken, getApplicationContext());
-                textView_user.setText("ID: "+userProf.getId()+" Name : "+userProf.getUsername());
-            }
-        });
-    }
-
-
-    private void getView() {
         AssetManager assetManager = getAssets();
         InputStream inputStream = null;
         try {
@@ -64,16 +44,10 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             Log.e("tag", e.getMessage());
         }
-        /*
-        * set all the url required for loading a login view
-        * */
+
         cidaasHelper = CidaasSDK.getCidaasSDKInst(getApplicationContext());
         cidaasHelper.setURLFile(inputStream);
-
-        /*
-        * create call back to get access token and show
-        * */
-        cidaasHelper.callback_ = new Icallback_() {
+        cidaasHelper.callback_ = new CidaasSDK.Icallback_() {
             @Override
             public void getResponse(ResponseEntity entity) {
                 editor.putString("Access_Token", entity.getAccess_token());
@@ -82,5 +56,36 @@ public class MainActivity extends AppCompatActivity {
             }
         };
         cidaasHelper.login(layout_root, getApplicationContext());
+        logout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CidaasSDK.logout("5774adcdb3cb1f0001ad2e4a", getApplicationContext());
+            }
+        });
+        final CidaasSDK.UserProfCallback userProfCallback = new CidaasSDK.UserProfCallback() {
+            @Override
+            public void onSuccess(UserProfile userProfile) {
+                if (userProfile!=null) {
+                    textView_user.setText("ID: "+userProfile.getId()+" Name : "+userProfile.getUsername());
+                }
+            }
+            @Override
+            public void onError(String message) {
+
+            }
+        };
+        usrProf.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String AccessToken = sp.getString("Access_Token", "");
+                CidaasSDK.getUserInfoFromAccessToken(userProfCallback,AccessToken, getApplicationContext());
+
+            }
+        });
+    }
+
+
+    private void getView() {
+
     }
 }

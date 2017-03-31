@@ -26,6 +26,8 @@ import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.scottyab.aescrypt.AESCrypt;
 
 import org.w3c.dom.Document;
@@ -62,7 +64,6 @@ import rx.schedulers.Schedulers;
 
 public class CidaasSDK extends RelativeLayout {
     private static final String TAG = "TAG";
-    private RelativeLayout content;
     ProgressBar progressBar;
     private static WebView webview_ = null;
     private static boolean error_ = false;
@@ -78,6 +79,7 @@ public class CidaasSDK extends RelativeLayout {
     private View view;
     private static String redirectURI;
     public static Icallback_ callback_;
+    public static UserProfCallback userProfCallback;
     private static String viewType;
     private static String error_description = "";
     private static String userIdURL;
@@ -94,18 +96,21 @@ public class CidaasSDK extends RelativeLayout {
         super(context, attrs);
         init(context);
     }
+
     private WebView getInstanceOfWebview(Context context) {
         if (webview_ == null) {
             webview_ = new WebView(context);
         }
         return webview_;
     }
+
     private static String getUserIdURL() {
         if (userIdURL == null)
             return "";
         else
             return userIdURL;
     }
+
     private String getViewType() {
         if (viewType == null)
             return "";
@@ -324,8 +329,6 @@ public class CidaasSDK extends RelativeLayout {
 
 
     private void init(Context context) {
-        View rootView = inflate(context, R.layout.layout_fragment, this);
-        content = (RelativeLayout) rootView.findViewById(R.id.content);
         webview_ = getInstanceOfWebview(context);
         sp = PreferenceManager.getDefaultSharedPreferences(context);
         editor = sp.edit();
@@ -595,7 +598,17 @@ public class CidaasSDK extends RelativeLayout {
                             responseEntity.setSuccess(true);
                             callback_.getResponse(responseEntity);
                             saveLoginDetails(loginEntity);
-                            getUserInfoFromAccessToken(access_token[0], context);
+                            userProfCallback = new UserProfCallback() {
+                                @Override
+                                public void onSuccess(UserProfile userProfile) {
+                                    saveData(userProfile, context);
+                                }
+
+                                @Override
+                                public void onError(String message) {
+                                }
+                            };
+                            getUserInfoFromAccessToken(userProfCallback, access_token[0], context);
                         }
                     });
         }
@@ -603,33 +616,40 @@ public class CidaasSDK extends RelativeLayout {
     }
 
     private static void saveLoginDetails(LoginEntity loginEntity) {
-
+        ObjectMapper mapper = new ObjectMapper();
         String salt = UUID.randomUUID().toString();
         String en = null;
         long timeinmillis = System.currentTimeMillis();
         long time = timeinmillis / 1000;
         time = time + loginEntity.getExpires_in() - 10;
+        LoginWithUserIDEntity loginWithUserIDEntity = new LoginWithUserIDEntity();
         try {
+            loginWithUserIDEntity.setExpires_in(time);
             en = AESCrypt.encrypt(salt, loginEntity.getAccess_token());
-            editor.putString("CidaasAccessToken", en);
-            editor.putString("CidaasSalt", salt);
-            editor.putString("CidaasRefreshToken", loginEntity.getRefresh_token());
-            editor.putLong("CidaasExpiresIn", time);
+            loginWithUserIDEntity.setAccess_token(en);
+            loginWithUserIDEntity.setId_token(loginEntity.getId_token());
+            loginWithUserIDEntity.setRefresh_token(loginEntity.getRefresh_token());
+            loginWithUserIDEntity.setScope(loginEntity.getScope());
+            loginWithUserIDEntity.setUserstate(loginEntity.getUserstate());
+            loginWithUserIDEntity.setSalt(salt);
+            String loginEntityAsString = mapper.writeValueAsString(loginWithUserIDEntity);
+            editor.putString("CidaasEntity", loginEntityAsString);
             editor.commit();
         } catch (GeneralSecurityException e) {
+            e.printStackTrace();
+        } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
     }
 
-    public static UserProfile getUserInfoFromAccessToken(String access_token, final Context context) {
-        final UserProfile[] userProfile = {new UserProfile()};
-        final ResponseEntity responseEntity = new ResponseEntity();
+    public static void getUserInfoFromAccessToken(final UserProfCallback userProfCallback, String access_token, final Context context) {
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://your.api.url/")
                 .addConverterFactory(JacksonConverterFactory.create())
                 .addCallAdapterFactory(RxJavaCallAdapterFactory.create())
                 .build();
         ICidaasAPI service = retrofit.create(ICidaasAPI.class);
+
         service.getUserDetailsApi(getUserIdURL(), access_token).subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Observer<UserProfile>() {
@@ -640,66 +660,86 @@ public class CidaasSDK extends RelativeLayout {
 
                                @Override
                                public void onError(Throwable e) {
-                                   //If something went wrong goto login screen
                                    error_ = true;
                                    error_description = e.getMessage();
+                                   userProfCallback.onError(e.getMessage());
                                    System.out.println("Get user profile err " + e.getMessage());
                                }
 
                                @Override
                                public void onNext(UserProfile userInfo) {
-                                   userProfile[0] = userInfo;
-                                   System.out.println("Get user profile res User id : " + userInfo.getId());
-                                   if (sp == null) {
-                                       sp = PreferenceManager.getDefaultSharedPreferences(context);
-                                   } else if (editor == null) {
-                                       editor = sp.edit();
-                                   } else {
-                                       editor.putString("CidaasUserID", userInfo.getId());
-                                       editor.commit();
-
-                                   }
+                                   userProfCallback.onSuccess(userInfo);
                                }
                            }
+
                 );
-        if (userProfile[0] != null)
-            return userProfile[0];
-        else
-            return null;
     }
 
-    public static ResponseEntity getAccessTokenByUserId(String userId) {
-        String UserID = sp.getString("UserID", "");
-        Long ExpiresIn = sp.getLong("ExpiresIn", 0);
-        String AccessToken = sp.getString("AccessToken", "");
-        String RefreshToken = sp.getString("RefreshToken", "");
-        String Salt = sp.getString("Salt", "");
-        long timeinmillis = System.currentTimeMillis();
-        long time = timeinmillis / 1000;
-        System.out.println("Current Time: " + time + "Expires in: " + ExpiresIn);
-        ResponseEntity responseEntity = new ResponseEntity();
-        if (UserID != "" && UserID.equals(userId)) {
 
-            if (ExpiresIn > time) {
-                try {
-                    String de = AESCrypt.decrypt(Salt, AccessToken);
-                    responseEntity.setAccess_token(de);
-                    responseEntity.setError("Success");
-                    responseEntity.setSuccess(true);
-
-                } catch (GeneralSecurityException e) {
-                    e.printStackTrace();
-                }
-
-            } else {
-
-                responseEntity = getAccessTokenByRefreshToken(RefreshToken);
-            }
+    private static void saveData(UserProfile userInfo, Context context) {
+        System.out.println("Get user profile res User id : " + userInfo.getId());
+        if (sp == null) {
+            sp = PreferenceManager.getDefaultSharedPreferences(context);
+        } else if (editor == null) {
+            editor = sp.edit();
         } else {
-            responseEntity.setAccess_token(null);
-            responseEntity.setError("Invalid UserID!!");
-            responseEntity.setSuccess(false);
+            ObjectMapper mapper = new ObjectMapper();
+            String CidaasEntity = sp.getString("CidaasEntity", "");
+            try {
+                LoginWithUserIDEntity loginWithUserIDEntity = mapper.readValue(CidaasEntity, LoginWithUserIDEntity.class);
+                loginWithUserIDEntity.setId(userInfo.getId());
+                String loginEntityAsString = mapper.writeValueAsString(loginWithUserIDEntity);
+                editor.putString("CidaasEntity", loginEntityAsString);
+                editor.commit();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
+    }
+
+
+    public static ResponseEntity getAccessTokenByUserId(String userId) {
+        ObjectMapper mapper = new ObjectMapper();
+        String CidaasEntity = sp.getString("CidaasEntity", "");
+        ResponseEntity responseEntity = new ResponseEntity();
+        if (CidaasEntity != null || !CidaasEntity.equals("")) {
+            try {
+                LoginWithUserIDEntity loginWithUserIDEntity = mapper.readValue(CidaasEntity, LoginWithUserIDEntity.class);
+                String UserID = loginWithUserIDEntity.getId();
+                Long ExpiresIn = loginWithUserIDEntity.getExpires_in();
+                String AccessToken = loginWithUserIDEntity.getAccess_token();
+                String RefreshToken = loginWithUserIDEntity.getRefresh_token();
+                String Salt = loginWithUserIDEntity.getSalt();
+                long timeinmillis = System.currentTimeMillis();
+                long time = timeinmillis / 1000;
+                System.out.println("Current Time: " + time + "Expires in: " + ExpiresIn);
+                if (UserID != "" && UserID.equals(userId)) {
+
+                    if (ExpiresIn > time) {
+                        try {
+                            String de = AESCrypt.decrypt(Salt, AccessToken);
+                            responseEntity.setAccess_token(de);
+                            responseEntity.setError("Success");
+                            responseEntity.setSuccess(true);
+                        } catch (GeneralSecurityException e) {
+                            e.printStackTrace();
+                        }
+
+                    } else {
+
+                        responseEntity = getAccessTokenByRefreshToken(RefreshToken);
+                    }
+                } else {
+                    responseEntity.setAccess_token(null);
+                    responseEntity.setError("Invalid UserID!!");
+                    responseEntity.setSuccess(false);
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }
+
         return responseEntity;
     }
 
@@ -789,6 +829,16 @@ public class CidaasSDK extends RelativeLayout {
             editor.commit();
         }
 
+    }
+
+    public interface Icallback_ {
+        public void getResponse(ResponseEntity entity);
+    }
+
+    public interface UserProfCallback {
+        void onSuccess(UserProfile userProfile);
+
+        void onError(String message);
     }
 }
 
